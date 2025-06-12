@@ -2,12 +2,12 @@ package org.voting.service.vote;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.voting.domain.session.VotingSession;
 import org.voting.domain.vote.Vote;
 import org.voting.domain.vote.VoteChoice;
-import org.voting.dto.result.VoteResultResponseDTO;
+import org.voting.domain.session.VotingSession;
 import org.voting.dto.vote.VoteRequestDTO;
 import org.voting.dto.vote.VoteResponseDTO;
+import org.voting.dto.result.VoteResultResponseDTO;
 import org.voting.exception.BusinessException;
 import org.voting.exception.NotFoundException;
 import org.voting.repository.agenda.AgendaRepository;
@@ -28,22 +28,13 @@ public class VoteService {
     private final AgendaRepository agendaRepository;
 
     public VoteResponseDTO castVote(VoteRequestDTO request) {
-        if (voteRepository.existsBySessionIdAndCpf(request.getSessionId(), request.getCpf())) {
-            throw new BusinessException(ERROR_DUPLICATE_VOTE);
-        }
+        validateDuplicateVote(request.getSessionId(), request.getCpf());
 
-        VotingSession session = sessionRepository.findById(request.getSessionId())
-                .orElseThrow(() -> new NotFoundException(ERROR_SESSION_NOT_FOUND));
+        VotingSession session = findSessionOrThrow(request.getSessionId());
 
-        if (LocalDateTime.now().isBefore(session.getStartTime()) || LocalDateTime.now().isAfter(session.getEndTime())) {
-            throw new BusinessException(ERROR_SESSION_CLOSED);
-        }
+        validateSessionIsOpen(session);
 
-        Vote vote = Vote.builder()
-                .cpf(request.getCpf())
-                .choice(request.getChoice())
-                .session(session)
-                .build();
+        Vote vote = buildVote(request, session);
 
         voteRepository.save(vote);
 
@@ -55,10 +46,16 @@ public class VoteService {
                 .build();
     }
 
+    private static Vote buildVote(VoteRequestDTO request, VotingSession session) {
+        return Vote.builder()
+                .cpf(request.getCpf())
+                .choice(request.getChoice())
+                .session(session)
+                .build();
+    }
+
     public VoteResultResponseDTO getResultByAgenda(Long agendaId) {
-        if (agendaNotExist(agendaId)) {
-            throw new NotFoundException(ERROR_AGENDA_NOT_FOUND);
-        }
+        validateAgendaExists(agendaId);
 
         List<Vote> votes = voteRepository.findBySession_Agenda_Id(agendaId);
 
@@ -72,7 +69,27 @@ public class VoteService {
                 .build();
     }
 
-    private boolean agendaNotExist(Long agendaId) {
-        return !agendaRepository.existsById(agendaId);
+    private void validateDuplicateVote(Long sessionId, String cpf) {
+        if (voteRepository.existsBySessionIdAndCpf(sessionId, cpf)) {
+            throw new BusinessException(ERROR_DUPLICATE_VOTE);
+        }
+    }
+
+    private VotingSession findSessionOrThrow(Long sessionId) {
+        return sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new NotFoundException(ERROR_SESSION_NOT_FOUND));
+    }
+
+    private void validateSessionIsOpen(VotingSession session) {
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(session.getStartTime()) || now.isAfter(session.getEndTime())) {
+            throw new BusinessException(ERROR_SESSION_CLOSED);
+        }
+    }
+
+    private void validateAgendaExists(Long agendaId) {
+        if (!agendaRepository.existsById(agendaId)) {
+            throw new NotFoundException(ERROR_AGENDA_NOT_FOUND);
+        }
     }
 }
