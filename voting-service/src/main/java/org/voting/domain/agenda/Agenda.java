@@ -1,4 +1,4 @@
-package org.voting.domain.entity;
+package org.voting.domain.agenda;
 
 import jakarta.persistence.*;
 import lombok.*;

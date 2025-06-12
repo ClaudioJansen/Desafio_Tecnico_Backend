@@ -1,4 +1,4 @@
-package org.voting.dto;
+package org.voting.dto.agenda;
 
 public record AgendaResponseDTO(
         Long id,

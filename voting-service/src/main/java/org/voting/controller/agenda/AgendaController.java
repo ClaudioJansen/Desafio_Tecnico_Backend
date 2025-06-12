@@ -1,22 +1,20 @@
-package org.voting.controller;
+package org.voting.controller.agenda;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.voting.dto.AgendaRequestDTO;
-import org.voting.dto.AgendaResponseDTO;
-import org.voting.service.AgendaService;
+import org.voting.dto.agenda.AgendaRequestDTO;
+import org.voting.dto.agenda.AgendaResponseDTO;
+import org.voting.service.agenda.AgendaService;
 
 @RestController
 @RequestMapping("/api/v1/agendas")
+@RequiredArgsConstructor
 public class AgendaController {
 
     private final AgendaService agendaService;
-
-    public AgendaController(AgendaService agendaService) {
-        this.agendaService = agendaService;
-    }
 
     @PostMapping
     public ResponseEntity<AgendaResponseDTO> createAgenda(@RequestBody @Valid AgendaRequestDTO dto) {

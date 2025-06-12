@@ -1,11 +1,11 @@
-package org.voting.service;
+package org.voting.service.agenda;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.voting.domain.entity.Agenda;
-import org.voting.dto.AgendaRequestDTO;
-import org.voting.dto.AgendaResponseDTO;
-import org.voting.repository.AgendaRepository;
+import org.voting.domain.agenda.Agenda;
+import org.voting.dto.agenda.AgendaRequestDTO;
+import org.voting.dto.agenda.AgendaResponseDTO;
+import org.voting.repository.agenda.AgendaRepository;
 
 @Service
 @RequiredArgsConstructor

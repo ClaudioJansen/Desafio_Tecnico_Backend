@@ -1,4 +1,4 @@
-package org.voting.dto;
+package org.voting.dto.agenda;
 
 import jakarta.validation.constraints.NotBlank;
 
