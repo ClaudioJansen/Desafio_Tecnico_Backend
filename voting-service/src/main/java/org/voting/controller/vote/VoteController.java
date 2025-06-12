@@ -1,5 +1,6 @@
 package org.voting.controller.vote;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +17,7 @@ public class VoteController {
     private final VoteService voteService;
 
     @PostMapping
-    public ResponseEntity<VoteResponseDTO> vote(@RequestBody VoteRequestDTO request) {
+    public ResponseEntity<VoteResponseDTO> vote(@Valid @RequestBody VoteRequestDTO request) {
         VoteResponseDTO response = voteService.castVote(request);
         return ResponseEntity.ok(response);
     }
