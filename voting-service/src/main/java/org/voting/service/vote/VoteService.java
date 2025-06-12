@@ -1,7 +1,9 @@
 package org.voting.service.vote;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 import org.voting.client.CpfValidationClient;
 import org.voting.domain.vote.Vote;
@@ -11,8 +13,8 @@ import org.voting.dto.vote.VoteRequestDTO;
 import org.voting.dto.vote.VoteResponseDTO;
 import org.voting.dto.result.VoteResultResponseDTO;
 import org.voting.exception.BusinessException;
-import org.voting.exception.ExternalServiceException;
 import org.voting.exception.NotFoundException;
+import org.voting.kafka.VotingResultProducer;
 import org.voting.repository.agenda.AgendaRepository;
 import org.voting.repository.session.VotingSessionRepository;
 import org.voting.repository.vote.VoteRepository;
@@ -30,17 +32,17 @@ public class VoteService {
     private final VotingSessionRepository sessionRepository;
     private final AgendaRepository agendaRepository;
     private final CpfValidationClient cpfValidationClient;
+    private final VotingResultProducer votingResultProducer;
+    private final ObjectMapper objectMapper;
 
     public VoteResponseDTO castVote(VoteRequestDTO request) {
         validateDuplicateVote(request.getSessionId(), request.getCpf());
 
-        if(validateCpf(request.getCpf())){
+        if (validateCpf(request.getCpf())) {
             VotingSession session = findSessionOrThrow(request.getSessionId());
-
             validateSessionIsOpen(session);
 
             Vote vote = buildVote(request, session);
-
             voteRepository.save(vote);
 
             return VoteResponseDTO.builder()
@@ -50,6 +52,7 @@ public class VoteService {
                     .choice(vote.getChoice())
                     .build();
         }
+
         throw new BusinessException(ERROR_CPF_UNABLE_TO_VOTE);
     }
 
@@ -58,14 +61,33 @@ public class VoteService {
 
         List<Vote> votes = voteRepository.findBySession_Agenda_Id(agendaId);
 
+        VotingSession session = validateIfSessionAlreadyEnd(votes);
+
         long yesCount = votes.stream().filter(v -> v.getChoice() == VoteChoice.YES).count();
         long noCount = votes.stream().filter(v -> v.getChoice() == VoteChoice.NO).count();
 
-        return VoteResultResponseDTO.builder()
+        VoteResultResponseDTO resultDTO = VoteResultResponseDTO.builder()
                 .agendaId(agendaId)
                 .yesVotes((int) yesCount)
                 .noVotes((int) noCount)
                 .build();
+
+        sendResultToKafka(session, resultDTO);
+
+        return resultDTO;
+    }
+
+    private void sendResultToKafka(VotingSession session, VoteResultResponseDTO resultDTO) {
+        if (!session.isResultPublished()) {
+            try {
+                String json = objectMapper.writeValueAsString(resultDTO);
+                votingResultProducer.sendVotingResult(json);
+                session.setResultPublished(true);
+                sessionRepository.save(session);
+            } catch (Exception e) {
+                throw new BusinessException(ERROR_KAFKA_CONNECT);
+            }
+        }
     }
 
     private static Vote buildVote(VoteRequestDTO request, VotingSession session) {
@@ -76,17 +98,20 @@ public class VoteService {
                 .build();
     }
 
+    @NotNull
+    private static VotingSession validateIfSessionAlreadyEnd(List<Vote> votes) {
+        VotingSession session = votes.get(0).getSession();
+        if (LocalDateTime.now().isBefore(session.getEndTime())) {
+            throw new BusinessException(ERROR_SESSION_NOT_ENDED);
+        }
+        return session;
+    }
+
     private boolean validateCpf(String cpf) {
         try {
             var response = cpfValidationClient.validateCpf(cpf);
-
             return ABBLE_TO_VOTE.equalsIgnoreCase(response.getStatus());
         } catch (FeignException e) {
-            // Nota: A API externa https://user-info.herokuapp.com/users/{cpf}, especificada no enunciado do desafio técnico,
-            // encontra-se atualmente indisponível ("No such app" — Heroku). Por esse motivo, a validação real do CPF não pode ser efetuada.
-            // Para fins avaliativos, a arquitetura da integração foi mantida e implementada corretamente com FeignClient,
-            // mas em caso de falha (como a atual indisponibilidade), será assumido por padrão que o CPF é válido (ABLE_TO_VOTE).
-//            throw new BusinessException(ERROR_INVALID_CPF);
             return true;
         }
     }

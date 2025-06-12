@@ -13,4 +13,6 @@ public final class AppConstants {
     public static final String ERROR_DUPLICATE_VOTE = "You have already voted in this session.";
     public static final String ERROR_INVALID_CPF = "Invalid CPF.";
     public static final String ERROR_CPF_UNABLE_TO_VOTE = "User is not allowed to vote.";
+    public static final String ERROR_SESSION_NOT_ENDED = "Unable to retrieve results: the voting session is still ongoing.";
+    public static final String ERROR_KAFKA_CONNECT = "Failed to publish voting result on Kafka.";
 }

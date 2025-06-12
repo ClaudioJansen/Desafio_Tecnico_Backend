@@ -19,11 +19,16 @@ public class VotingSession {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
-    @JoinColumn(name = "agenda_id", nullable = false)
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "agenda_id")
     private Agenda agenda;
 
+    @Column(nullable = false)
     private LocalDateTime startTime;
 
+    @Column(nullable = false)
     private LocalDateTime endTime;
+
+    @Column(nullable = false)
+    private boolean resultPublished;
 }

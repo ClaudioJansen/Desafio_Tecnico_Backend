@@ -52,6 +52,7 @@ public class VotingSessionService {
                 .agenda(agenda)
                 .startTime(start)
                 .endTime(end)
+                .resultPublished(false)
                 .build();
     }
 
