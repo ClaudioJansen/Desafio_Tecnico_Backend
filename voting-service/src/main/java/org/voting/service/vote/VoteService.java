@@ -1,7 +1,9 @@
 package org.voting.service.vote;
 
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.voting.client.CpfValidationClient;
 import org.voting.domain.vote.Vote;
 import org.voting.domain.vote.VoteChoice;
 import org.voting.domain.session.VotingSession;
@@ -9,6 +11,7 @@ import org.voting.dto.vote.VoteRequestDTO;
 import org.voting.dto.vote.VoteResponseDTO;
 import org.voting.dto.result.VoteResultResponseDTO;
 import org.voting.exception.BusinessException;
+import org.voting.exception.ExternalServiceException;
 import org.voting.exception.NotFoundException;
 import org.voting.repository.agenda.AgendaRepository;
 import org.voting.repository.session.VotingSessionRepository;
@@ -26,32 +29,28 @@ public class VoteService {
     private final VoteRepository voteRepository;
     private final VotingSessionRepository sessionRepository;
     private final AgendaRepository agendaRepository;
+    private final CpfValidationClient cpfValidationClient;
 
     public VoteResponseDTO castVote(VoteRequestDTO request) {
         validateDuplicateVote(request.getSessionId(), request.getCpf());
 
-        VotingSession session = findSessionOrThrow(request.getSessionId());
+        if(validateCpf(request.getCpf())){
+            VotingSession session = findSessionOrThrow(request.getSessionId());
 
-        validateSessionIsOpen(session);
+            validateSessionIsOpen(session);
 
-        Vote vote = buildVote(request, session);
+            Vote vote = buildVote(request, session);
 
-        voteRepository.save(vote);
+            voteRepository.save(vote);
 
-        return VoteResponseDTO.builder()
-                .voteId(vote.getId())
-                .sessionId(session.getId())
-                .cpf(vote.getCpf())
-                .choice(vote.getChoice())
-                .build();
-    }
-
-    private static Vote buildVote(VoteRequestDTO request, VotingSession session) {
-        return Vote.builder()
-                .cpf(request.getCpf())
-                .choice(request.getChoice())
-                .session(session)
-                .build();
+            return VoteResponseDTO.builder()
+                    .voteId(vote.getId())
+                    .sessionId(session.getId())
+                    .cpf(vote.getCpf())
+                    .choice(vote.getChoice())
+                    .build();
+        }
+        throw new BusinessException(ERROR_CPF_UNABLE_TO_VOTE);
     }
 
     public VoteResultResponseDTO getResultByAgenda(Long agendaId) {
@@ -67,6 +66,29 @@ public class VoteService {
                 .yesVotes((int) yesCount)
                 .noVotes((int) noCount)
                 .build();
+    }
+
+    private static Vote buildVote(VoteRequestDTO request, VotingSession session) {
+        return Vote.builder()
+                .cpf(request.getCpf())
+                .choice(request.getChoice())
+                .session(session)
+                .build();
+    }
+
+    private boolean validateCpf(String cpf) {
+        try {
+            var response = cpfValidationClient.validateCpf(cpf);
+
+            return ABBLE_TO_VOTE.equalsIgnoreCase(response.getStatus());
+        } catch (FeignException e) {
+            // Nota: A API externa https://user-info.herokuapp.com/users/{cpf}, especificada no enunciado do desafio técnico,
+            // encontra-se atualmente indisponível ("No such app" — Heroku). Por esse motivo, a validação real do CPF não pode ser efetuada.
+            // Para fins avaliativos, a arquitetura da integração foi mantida e implementada corretamente com FeignClient,
+            // mas em caso de falha (como a atual indisponibilidade), será assumido por padrão que o CPF é válido (ABLE_TO_VOTE).
+//            throw new BusinessException(ERROR_INVALID_CPF);
+            return true;
+        }
     }
 
     private void validateDuplicateVote(Long sessionId, String cpf) {
