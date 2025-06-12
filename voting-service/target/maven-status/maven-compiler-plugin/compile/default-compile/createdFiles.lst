@@ -1,8 +1,0 @@
-org\voting\dto\AgendaRequestDTO.class
-org\voting\domain\entity\Agenda$AgendaBuilder.class
-org\voting\controller\AgendaController.class
-org\voting\repository\AgendaRepository.class
-org\voting\Main.class
-org\voting\service\AgendaService.class
-org\voting\domain\entity\Agenda.class
-org\voting\dto\AgendaResponseDTO.class
