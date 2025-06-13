@@ -18,6 +18,7 @@ import org.voting.repository.vote.VoteRepository;
 import org.voting.validation.DomainValidator;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.voting.config.AppConstants.*;
 
@@ -85,14 +86,18 @@ public class VoteService {
 
     private void sendResultToKafka(VotingSession session, VoteResultResponseDTO resultDTO) {
         if (!session.isResultPublished()) {
-            try {
-                String json = objectMapper.writeValueAsString(resultDTO);
-                votingResultProducer.sendVotingResult(json);
-                session.setResultPublished(true);
-                sessionRepository.save(session);
-            } catch (Exception e) {
-                throw new BusinessException(ERROR_KAFKA_CONNECT);
-            }
+            CompletableFuture.runAsync(() -> {
+                try {
+                    String json = objectMapper.writeValueAsString(resultDTO);
+                    votingResultProducer.sendVotingResult(json);
+                    session.setResultPublished(true);
+                    sessionRepository.save(session);
+                    log.info("Voting result for agenda {} sent to Kafka", session.getAgenda().getId());
+                } catch (Exception e) {
+                    log.error("Failed to send voting result to Kafka", e);
+                    throw new BusinessException(ERROR_KAFKA_CONNECT);
+                }
+            });
         }
     }
 
