@@ -1,7 +1,16 @@
 package org.voting.dto.agenda;
 
-public record AgendaResponseDTO(
-        Long id,
-        String title,
-        String description
-) {}
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class AgendaResponseDTO {
+    private Long id;
+    private String title;
+    private String description;
+}

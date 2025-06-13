@@ -15,8 +15,8 @@ public class AgendaService {
 
     public AgendaResponseDTO createAgenda(AgendaRequestDTO dto) {
         Agenda agenda = Agenda.builder()
-                .title(dto.title())
-                .description(dto.description())
+                .title(dto.getTitle())
+                .description(dto.getDescription())
                 .build();
 
         Agenda saved = agendaRepository.save(agenda);

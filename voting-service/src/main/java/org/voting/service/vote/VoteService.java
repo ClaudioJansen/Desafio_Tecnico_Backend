@@ -43,15 +43,15 @@ public class VoteService {
             domainValidator.validateSessionIsOpen(session);
 
             Vote vote = buildVote(request, session);
-            voteRepository.save(vote);
+            Vote saved = voteRepository.save(vote);
 
             log.info("Vote successfully recorded for CPF [{}] in session [{}]", vote.getCpf(), session.getId());
 
             return VoteResponseDTO.builder()
-                    .voteId(vote.getId())
-                    .sessionId(session.getId())
-                    .cpf(vote.getCpf())
-                    .choice(vote.getChoice())
+                    .voteId(saved.getId())
+                    .sessionId(saved.getSession().getId())
+                    .cpf(saved.getCpf())
+                    .choice(saved.getChoice())
                     .build();
         }
 

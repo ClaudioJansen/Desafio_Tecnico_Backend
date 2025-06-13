@@ -39,11 +39,11 @@ public class VoteController {
             description = "Returns the total YES and NO votes for a given agenda ID. Only available after session ends.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Vote result retrieved"),
-                    @ApiResponse(responseCode = "404", description = "Agenda not found or session still open")
+                    @ApiResponse(responseCode = "500", description = "Agenda not found or session still open")
             }
     )
     @GetMapping("/result/{agendaId}")
-    public ResponseEntity<VoteResultResponseDTO> getVoteResult(@PathVariable Long agendaId) {
+    public ResponseEntity<VoteResultResponseDTO> getVoteResult(@PathVariable @Valid Long agendaId) {
         VoteResultResponseDTO result = voteService.getResultByAgenda(agendaId);
         return ResponseEntity.ok(result);
     }

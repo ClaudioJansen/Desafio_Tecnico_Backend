@@ -25,7 +25,7 @@ public class AgendaController {
             description = "Registers a new agenda to be voted on.",
             responses = {
                     @ApiResponse(responseCode = "201", description = "Agenda successfully created"),
-                    @ApiResponse(responseCode = "400", description = "Invalid input")
+                    @ApiResponse(responseCode = "500", description = "Invalid input")
             }
     )
     @PostMapping

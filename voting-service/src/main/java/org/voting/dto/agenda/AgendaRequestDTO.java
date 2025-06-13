@@ -1,8 +1,15 @@
 package org.voting.dto.agenda;
 
 import jakarta.validation.constraints.NotBlank;
+import lombok.*;
 
-public record AgendaRequestDTO(
-        @NotBlank String title,
-        String description
-) {}
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Getter
+public class AgendaRequestDTO {
+    @NotBlank
+    private String title;
+    private String description;
+}

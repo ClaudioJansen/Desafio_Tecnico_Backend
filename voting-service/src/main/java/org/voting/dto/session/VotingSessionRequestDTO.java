@@ -1,6 +1,7 @@
 package org.voting.dto.session;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 @Getter
@@ -10,6 +11,7 @@ import lombok.*;
 @Builder
 public class VotingSessionRequestDTO {
 
+    @NotNull(message = "Agenda ID must not be null")
     private Long agendaId;
 
     @Min(1)

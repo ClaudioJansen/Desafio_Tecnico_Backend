@@ -3,6 +3,7 @@ package org.voting.controller.session;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,11 +25,11 @@ public class VotingSessionController {
             description = "Opens a voting session for a given agenda.",
             responses = {
                     @ApiResponse(responseCode = "201", description = "Session successfully opened"),
-                    @ApiResponse(responseCode = "400", description = "Invalid input or session already exists")
+                    @ApiResponse(responseCode = "500", description = "Invalid input or session already exists")
             }
     )
     @PostMapping
-    public ResponseEntity<VotingSessionResponseDTO> openSession(@RequestBody VotingSessionRequestDTO requestDTO) {
+    public ResponseEntity<VotingSessionResponseDTO> openSession(@RequestBody @Valid VotingSessionRequestDTO requestDTO) {
         VotingSessionResponseDTO responseDTO = votingSessionService.openSession(requestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
     }
