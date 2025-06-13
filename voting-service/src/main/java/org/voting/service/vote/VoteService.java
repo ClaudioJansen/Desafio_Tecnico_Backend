@@ -1,11 +1,9 @@
 package org.voting.service.vote;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import feign.FeignException;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.voting.client.CpfValidationClient;
 import org.voting.domain.vote.Vote;
 import org.voting.domain.vote.VoteChoice;
 import org.voting.domain.session.VotingSession;
@@ -15,35 +13,38 @@ import org.voting.dto.result.VoteResultResponseDTO;
 import org.voting.exception.BusinessException;
 import org.voting.exception.NotFoundException;
 import org.voting.kafka.VotingResultProducer;
-import org.voting.repository.agenda.AgendaRepository;
 import org.voting.repository.session.VotingSessionRepository;
 import org.voting.repository.vote.VoteRepository;
+import org.voting.validation.DomainValidator;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.voting.config.AppConstants.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VoteService {
 
     private final VoteRepository voteRepository;
     private final VotingSessionRepository sessionRepository;
-    private final AgendaRepository agendaRepository;
-    private final CpfValidationClient cpfValidationClient;
     private final VotingResultProducer votingResultProducer;
     private final ObjectMapper objectMapper;
+    private final DomainValidator domainValidator;
 
     public VoteResponseDTO castVote(VoteRequestDTO request) {
-        validateDuplicateVote(request.getSessionId(), request.getCpf());
+        log.info("Receiving vote from CPF [{}] in session [{}]", request.getCpf(), request.getSessionId());
 
-        if (validateCpf(request.getCpf())) {
+        domainValidator.validateDuplicateVote(request.getSessionId(), request.getCpf());
+
+        if (domainValidator.validateCpf(request.getCpf())) {
             VotingSession session = findSessionOrThrow(request.getSessionId());
-            validateSessionIsOpen(session);
+            domainValidator.validateSessionIsOpen(session);
 
             Vote vote = buildVote(request, session);
             voteRepository.save(vote);
+
+            log.info("Vote successfully recorded for CPF [{}] in session [{}]", vote.getCpf(), session.getId());
 
             return VoteResponseDTO.builder()
                     .voteId(vote.getId())
@@ -53,18 +54,23 @@ public class VoteService {
                     .build();
         }
 
+        log.warn("CPF [{}] is not allowed to vote", request.getCpf());
         throw new BusinessException(ERROR_CPF_UNABLE_TO_VOTE);
     }
 
     public VoteResultResponseDTO getResultByAgenda(Long agendaId) {
-        validateAgendaExists(agendaId);
+        log.info("Retrieving voting result for agenda ID: {}", agendaId);
+
+        domainValidator.validateAgendaExists(agendaId);
 
         List<Vote> votes = voteRepository.findBySession_Agenda_Id(agendaId);
 
-        VotingSession session = validateIfSessionAlreadyEnd(votes);
+        VotingSession session = DomainValidator.validateIfSessionAlreadyEnd(votes);
 
         long yesCount = votes.stream().filter(v -> v.getChoice() == VoteChoice.YES).count();
         long noCount = votes.stream().filter(v -> v.getChoice() == VoteChoice.NO).count();
+
+        log.info("Result - YES: {}, NO: {}", yesCount, noCount);
 
         VoteResultResponseDTO resultDTO = VoteResultResponseDTO.builder()
                 .agendaId(agendaId)
@@ -98,45 +104,12 @@ public class VoteService {
                 .build();
     }
 
-    @NotNull
-    private static VotingSession validateIfSessionAlreadyEnd(List<Vote> votes) {
-        VotingSession session = votes.get(0).getSession();
-        if (LocalDateTime.now().isBefore(session.getEndTime())) {
-            throw new BusinessException(ERROR_SESSION_NOT_ENDED);
-        }
-        return session;
-    }
-
-    private boolean validateCpf(String cpf) {
-        try {
-            var response = cpfValidationClient.validateCpf(cpf);
-            return ABBLE_TO_VOTE.equalsIgnoreCase(response.getStatus());
-        } catch (FeignException e) {
-            return true;
-        }
-    }
-
-    private void validateDuplicateVote(Long sessionId, String cpf) {
-        if (voteRepository.existsBySessionIdAndCpf(sessionId, cpf)) {
-            throw new BusinessException(ERROR_DUPLICATE_VOTE);
-        }
-    }
-
     private VotingSession findSessionOrThrow(Long sessionId) {
         return sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new NotFoundException(ERROR_SESSION_NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.error("Voting session not found: {}", sessionId);
+                    return new NotFoundException(ERROR_SESSION_NOT_FOUND);
+                });
     }
 
-    private void validateSessionIsOpen(VotingSession session) {
-        LocalDateTime now = LocalDateTime.now();
-        if (now.isBefore(session.getStartTime()) || now.isAfter(session.getEndTime())) {
-            throw new BusinessException(ERROR_SESSION_CLOSED);
-        }
-    }
-
-    private void validateAgendaExists(Long agendaId) {
-        if (!agendaRepository.existsById(agendaId)) {
-            throw new NotFoundException(ERROR_AGENDA_NOT_FOUND);
-        }
-    }
 }

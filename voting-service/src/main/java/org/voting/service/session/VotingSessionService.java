@@ -6,10 +6,10 @@ import org.voting.domain.session.VotingSession;
 import org.voting.domain.agenda.Agenda;
 import org.voting.dto.session.VotingSessionRequestDTO;
 import org.voting.dto.session.VotingSessionResponseDTO;
-import org.voting.exception.BusinessException;
 import org.voting.exception.NotFoundException;
 import org.voting.repository.agenda.AgendaRepository;
 import org.voting.repository.session.VotingSessionRepository;
+import org.voting.validation.DomainValidator;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -22,11 +22,12 @@ public class VotingSessionService {
 
     private final VotingSessionRepository votingSessionRepository;
     private final AgendaRepository agendaRepository;
+    private final DomainValidator domainValidator;
 
     public VotingSessionResponseDTO openSession(VotingSessionRequestDTO request) {
         Agenda agenda = findAgendaOrThrow(request.getAgendaId());
 
-        validateSessionUniqueness(request.getAgendaId());
+        domainValidator.validateSessionUniqueness(request.getAgendaId());
 
         int duration = Objects.nonNull(request.getDurationInMinutes())
                 ? request.getDurationInMinutes()
@@ -59,11 +60,5 @@ public class VotingSessionService {
     private Agenda findAgendaOrThrow(Long agendaId) {
         return agendaRepository.findById(agendaId)
                 .orElseThrow(() -> new NotFoundException(ERROR_AGENDA_NOT_FOUND));
-    }
-
-    private void validateSessionUniqueness(Long agendaId) {
-        if (votingSessionRepository.existsByAgendaId(agendaId)) {
-            throw new BusinessException(ERROR_SESSION_ALREADY_EXISTS);
-        }
     }
 }
