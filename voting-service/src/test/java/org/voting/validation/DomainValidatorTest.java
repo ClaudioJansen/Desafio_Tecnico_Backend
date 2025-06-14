@@ -1,7 +1,9 @@
 package org.voting.validation;
 
+import feign.FeignException;
+import feign.Request;
+import feign.Response;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.voting.client.CpfValidationClient;
 import org.voting.client.dto.CpfValidationResponse;
@@ -15,6 +17,7 @@ import org.voting.repository.vote.VoteRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -65,7 +68,6 @@ class DomainValidatorTest {
         assertThrows(BusinessException.class, () -> DomainValidator.validateIfSessionAlreadyEnd(List.of(vote)));
     }
 
-    @Disabled("Desabilitado porque a API externa está indisponível")
     @Test
     void shouldReturnTrueWhenCpfAbleToVote() {
         when(cpfValidationClient.validateCpf("123")).thenReturn(CpfValidationResponse.builder().status("ABLE_TO_VOTE").build());
@@ -73,12 +75,33 @@ class DomainValidatorTest {
         assertTrue(result);
     }
 
-    @Disabled("Desabilitado porque a API externa está indisponível")
     @Test
-    void shouldThrowWhenCpfNotAbleToVote() {
+    void shouldReturnFalseWhenCpfUnableToVote() {
         when(cpfValidationClient.validateCpf("123")).thenReturn(CpfValidationResponse.builder().status("UNABLE_TO_VOTE").build());
         boolean result = validator.validateCpf("123");
         assertFalse(result);
+    }
+
+    @Test
+    void shouldReturnTrueWhenCpfFailsTwiceAndFallback() {
+        FeignException simulatedException = FeignException.errorStatus(
+                "GET",
+                Response.builder()
+                        .status(500)
+                        .reason("Internal Server Error")
+                        .request(Request.create(Request.HttpMethod.GET, "http://dummy", Map.of(), null, null, null))
+                        .build()
+        );
+
+        when(cpfValidationClient.validateCpf("12345678900"))
+                .thenThrow(simulatedException)
+                .thenThrow(simulatedException);
+
+        boolean result = validator.validateCpf("12345678900");
+
+        assertTrue(result);
+
+        verify(cpfValidationClient, times(2)).validateCpf("12345678900");
     }
 
     @Test

@@ -20,12 +20,25 @@ O sistema foi projetado para oferecer uma API robusta e escalável capaz de:
 
 - **Java + Spring Boot**: estrutura robusta e com excelente suporte à criação de APIs REST.
 - **PostgreSQL**: banco de dados relacional com persistência garantida.
-- **Kafka (via Confluent Cloud)**: para mensageria assíncrona de resultados.
+- **Kafka**: para mensageria assíncrona de resultados.
 - **Feign Client**: integração com API externa de validação de CPF.
 - **Spring Cache**: cache para CPFs validados e evitar múltiplas chamadas desnecessárias.
 - **SLF4J + Logback**: logs centralizados e padronizados.
 - **Validações centralizadas**: `DomainValidator` criado para manter regras de negócio reutilizáveis.
+- **Retry + Fallback com Resilience4j**: tolerância a falhas externas com retentativas e fallback.
 - **Testes unitários e automatizados** com cobertura ampla via JUnit e MockMvc.
+
+---
+
+## 🔁 Validação de CPF com Retry e Fallback
+
+Durante a votação, o CPF do usuário é validado por meio de uma chamada a uma API externa. No entanto, como a API pode estar fora do ar, foi implementado o seguinte mecanismo:
+
+- O sistema tenta realizar a validação da resposta até **2 vezes (retry)** usando `Resilience4j`.
+- Caso todas as tentativas falhem, é ativado um **fallback automático** que assume o CPF como válido.
+- Um log de aviso (`WARN`) é registrado sempre que o fallback é acionado.
+
+Essa abordagem garante que a aplicação continue funcionando mesmo em cenários de falha externa, como instabilidade da API de terceiros, sem impactar a experiência do usuário.
 
 ---
 
@@ -52,7 +65,8 @@ Principais endpoints:
 - PostgreSQL
 - Apache Kafka
 - Feign Client
-- Spring Validation
+- Resilience4j (Retry & Fallback)
+- Spring Cache
 - Swagger (SpringDoc)
 - JUnit + Mockito
 - Docker + Docker Compose
@@ -94,14 +108,6 @@ Com os serviços no ar, execute:
 ./mvnw spring-boot:run
 ```
 
-Ou, se preferir usar Docker:
-
-```bash
-./mvnw clean package -DskipTests
-docker build -t voting-system .
-docker run -p 8080:8080 voting-system
-```
-
 ---
 
 ## 📨 Kafka
@@ -126,7 +132,11 @@ Executam validações específicas por camada (controller, service e validators)
 ./mvnw test
 ```
 
+### Testes Automatizados
 
+Testes automatizados foram implementados utilizando `MockMvc` para cobrir os principais fluxos de negócio da aplicação, simulando chamadas HTTP reais e validando as respostas.
+
+---
 
 ## 🧠 Considerações Finais
 
@@ -137,6 +147,7 @@ Este projeto aplica boas práticas como:
 - Integração com API externa com fallback controlado
 - Logging do comportamento e das chamadas externas
 - Publicação Kafka assíncrona com `CompletableFuture`
+- Tolerância a falhas com Resilience4j (Retry + Fallback)
 - Testes unitários e automatizados
 - Cache com Spring Cache para evitar chamadas externas redundantes
 
@@ -144,5 +155,4 @@ Este projeto aplica boas práticas como:
 
 ## 👨‍💻 Autor
 
-Cláudio Jansen — 2025 
-cd voting-system
+Cláudio Jansen — 2025

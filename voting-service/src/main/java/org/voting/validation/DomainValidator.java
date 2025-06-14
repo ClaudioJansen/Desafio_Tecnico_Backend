@@ -1,6 +1,6 @@
 package org.voting.validation;
 
-import feign.FeignException;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -45,19 +45,16 @@ public class DomainValidator {
         return session;
     }
 
+    @Retry(name = "cpfValidation", fallbackMethod = "validateCpfFallback")
     @Cacheable(value = "cpfStatus", key = "#cpf")
     public boolean validateCpf(String cpf) {
-        try {
-            var response = cpfValidationClient.validateCpf(cpf);
-            return ABBLE_TO_VOTE.equalsIgnoreCase(response.getStatus());
-        } catch (FeignException e) {
-            // Nota: A API externa https://user-info.herokuapp.com/users/{cpf}, especificada no enunciado do desafio técnico,
-            // encontra-se atualmente indisponível ("No such app" — Heroku). Por esse motivo, a validação real do CPF não pode ser efetuada.
-            // Para fins avaliativos, a arquitetura da integração foi mantida e implementada corretamente com FeignClient,
-            // mas em caso de falha (como a atual indisponibilidade), será assumido por padrão que o CPF é válido (ABLE_TO_VOTE).
-//            throw new BusinessException(ERROR_INVALID_CPF);
-            return true;
-        }
+        var response = cpfValidationClient.validateCpf(cpf);
+        return ABLE_TO_VOTE.equalsIgnoreCase(response.getStatus());
+    }
+
+    public boolean validateCpfFallback(String cpf, Exception ex) {
+        log.warn("Fallback: error validating CPF [{}]. Assuming it is valid. Error: {}", cpf, ex.getMessage());
+        return DEFAULT_FALLBACK;
     }
 
     public void validateDuplicateVote(Long sessionId, String cpf) {
