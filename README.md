@@ -138,6 +138,51 @@ Testes automatizados foram implementados utilizando `MockMvc` para cobrir os pri
 
 ---
 
+## ⚡️ Desempenho e Tolerância a Falhas
+
+### Cache de Validação de CPF
+
+Para reduzir chamadas desnecessárias à API externa de validação de CPF, foi implementado um cache com **Spring Cache**, armazenando os CPFs previamente validados com resultado positivo. Isso proporciona:
+
+- Menor latência nas requisições de voto
+- Menor consumo da API externa
+- Maior eficiência do sistema em ambientes de alta carga
+
+### Chamada Assíncrona ao Kafka
+
+A publicação do resultado de uma votação no Kafka é feita de forma **assíncrona**, utilizando `CompletableFuture`, o que garante que:
+
+- A resposta do endpoint ao cliente não bloqueia esperando a entrega da mensagem
+- A experiência de uso é mais fluida e rápida
+- O processo de envio ao Kafka pode ser monitorado e logado separadamente
+
+### Tolerância a Falhas com Retry e Fallback
+
+A integração com a API de CPF foi protegida com **Resilience4j Retry**, configurando até 2 tentativas adicionais em caso de falha. Se todas as tentativas falharem (por exemplo, por timeout ou erro 500), o sistema **assume o CPF como válido** por fallback e continua o fluxo de votação normalmente, garantindo:
+
+- Resiliência do sistema mesmo com instabilidades externas
+- Continuidade da operação, evitando que usuários fiquem bloqueados
+
+---
+
+## 🔀 Versionamento da API
+
+Este projeto segue boas práticas de versionamento RESTful. A versão da API é exposta no início do path dos endpoints:
+
+```
+/api/v1/*
+```
+
+Vantagens dessa abordagem:
+
+- Permite a introdução de novas versões no futuro (`/api/v2`, `/api/v3`, etc.) sem impacto direto em consumidores existentes
+- Facilita o controle de compatibilidade e evolução da API
+- Ajuda na manutenção e documentação de diferentes comportamentos entre versões
+
+---
+
+---
+
 ## 🧠 Considerações Finais
 
 Este projeto aplica boas práticas como:
